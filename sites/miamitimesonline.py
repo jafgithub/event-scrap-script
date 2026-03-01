@@ -9,57 +9,70 @@ from time import sleep
 
 # Configure logging
 logging.basicConfig(filename='events.log', level=logging.INFO)
-
-
+import json
+import traceback
 def fetch_events_from_miamitimes(city="", days=2):
     try:
         start = datetime.now()
         end = start + timedelta(days=days)
         start = start.strftime("%Y-%m-%d")
         end = end.strftime("%Y-%m-%d")
-        url = f"https://discoverevvnt.com/api/events?multipleEventInstances=true&publisher_id=8787&hitsPerPage=5000&page=0&fromDate={start}&toDate={end}"
-
+        base_url = "https://discovery.evvnt.com/api/events"
         records = []
         result = []
         headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://miamitimesonline.com/",
-    "Origin": "https://miamitimesonline.com",
-}
-        res = make_request(url=url, headers=headers)
-        # print(res)
-        records = res.get("events")
-        # print(records)
-        logging.info(f"Fetched {len(records)} records")
+            'sec-ch-ua-platform': '"Windows"',
+            'Referer': 'https://www.miamitimesonline.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+            'sec-ch-ua': '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+            'sec-ch-ua-mobile': '?0',
+        }
 
-        if records:
+        for page in range(0, 10):  # first 5 pages only
+            url = (
+                f"{base_url}?multipleEventInstances=true"
+                f"&publisher_id=8787"
+                f"&hitsPerPage=30"
+                f"&page={page}"
+                f"&fromDate={start}"
+                f"&toDate={end}"
+            )
+            res = make_request(url=url, headers=headers)
+            if not res:
+                continue
+
+            records = res.get("events") or []
+            logging.info(f"Fetched {len(records)} records")
+
+            if not records:
+                # No more pages / no events on this page
+                break
+
             for i, record in enumerate(records):
-                address = record.get("venue")
+                address = record.get("venue") or {}
                 sdate = ""
                 edate = ""
                 event = Event()
 
                 if record.get("start_time_i"):
-                    sdate = datetime.fromtimestamp(
-                        int(record.get("start_time_i")))
+                    sdate = datetime.fromtimestamp(int(record.get("start_time_i")))
                     event["sdate"] = sdate.strftime("%Y-%m-%d")
                     event["stime"] = sdate.strftime("%H:%M:%S")
                 else:
                     event["sdate"] = "NONE"
                     event["stime"] = "NONE"
+
                 if record.get("end_time_i"):
-                    edate = datetime.fromtimestamp(
-                        int(record.get("end_time_i")))
+                    edate = datetime.fromtimestamp(int(record.get("end_time_i")))
                     event["edate"] = edate.strftime("%Y-%m-%d")
                     event["etime"] = edate.strftime("%H:%M:%S")
                 else:
                     event["edate"] = "NONE"
                     event["etime"] = "NONE"
-                
-                if record.get("category_name",None):
-                    event["event category"] = record["category_name"]["value"]
-                logging.debug(record.get("category_name",None))
+
+                if record.get("category_name", None):
+                    event["event category"] = record["category_name"]
+                logging.debug(record.get("category_name", None))
 
                 _address = ""
                 logging.info(f"Processing event {i+1}")
@@ -82,46 +95,46 @@ def fetch_events_from_miamitimes(city="", days=2):
                 event["latitude"] = address.get("latitude") or "NONE"
                 event["longitude"] = address.get("longitude") or "NONE"
                 event["place_name"] = address.get("name") or "NONE"
+
                 img_url = img_path = "NONE"
+                images = None
                 if record.get("images"):
                     if isinstance(record.get("images"), list):
-                        images = record.get("images")[0]
+                        images = record.get("images")[0] if record.get("images") else None
                     elif isinstance(record.get("images"), dict):
                         images = record.get("images")
                     if images:
-                        # img_path, img_url = save_and_upload_image(
-                        #     images["original"]["url"], "miamitimesonline.com")
                         img_url = images["original"]["url"]
                     else:
                         img_url = "NONE"
 
                 event["original_img_name"] = img_url
-                # event["img"] = event["cover_img"] = img_path
+
                 if record.get("source_broadcast_url"):
-                    event["event_url"] = record.get(
-                        "source_broadcast_url") or "NONE"
-                    logging.info(
-                        f"Event {i+1} successfully fetched: {event['event_url']}")
+                    event["event_url"] = record.get("source_broadcast_url") or "NONE"
+                    logging.info(f"Event {i+1} successfully fetched: {event['event_url']}")
                 elif record.get("links", None):
-                    links = record.get("links")
+                    links = record.get("links") or {}
                     logging.info(f"Processing links for event {i+1}: {links}")
                     if "Website" in links.keys():
                         event["event_url"] = links["Website"]
-                        logging.info(
-                            f"Event {i+1} successfully fetched: {event['event_url']}")
+                        logging.info(f"Event {i+1} successfully fetched: {event['event_url']}")
                     elif "Tickets" in links.keys():
                         event["event_url"] = links.get("Tickets")
-                        logging.info(
-                            f"Event {i+1} successfully fetched: {event['event_url']}")
+                        logging.info(f"Event {i+1} successfully fetched: {event['event_url']}")
                     elif "tickets" in links.keys():
                         event["event_url"] = links.get("tickets")
-                        logging.info(
-                            f"Event {i+1} successfully fetched: {event['event_url']}")
+                        logging.info(f"Event {i+1} successfully fetched: {event['event_url']}")
+
                 result.append(event)
+
+        if result:
             return result
         else:
             logging.warning("No events found")
+
     except Exception:
+        print(traceback.format_exc())
         logging.exception(f"An error occurred.")
 
 

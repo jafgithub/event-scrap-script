@@ -2,19 +2,19 @@
     "listpage": {
         "event_card": "//tr[contains(@class, 'event-card')]",
         "address": "//div[contains(@class, 'mb-0 fs-20')]",
-        "event_url": ".//a[contains(@class, 'text-decoration-none c-ga xn')]/@href"
+        "event_url": ".//td[contains(@class,'cursor-pointer')]/@onclick"
     },
     "detailpage": {
         "lat_long": "//form/input[@id='geoLatLng']/@value",
-        "desc": "//p[@class='mng text-break fs-14']/text()",
+        "desc": "//span[@id='paragraph']/text()",
         "lat": "//span[@id='event_latitude']/text()",
-        "event_image": "//section[@class='page-wrapper']/@style",
+        "event_image": "//section[@class='page-wrapper mb-0 background-cover']",
         "long": "//span[@id='event_longude']/text()",
-        "organizer": "//a[@id='org-name']/text()",
+        "organizer": "//strong[@id='org-name']/text()",
         "start_end_datetime": "//form/input[@id='strt_end_date']/@value",
         "event_name": "//form/input[@id='event_name']/@value",
         "event_category": "//td[@id='hvrout2']/text()",
-        "place_name": "//section[@id='map_dirr']/div[@class='mb-1 fs-16']",
-        "address": "//section[contains(@id, 'map_dirr')]/p"
+        "place_name": "//section[@id='map_dirr']//div[@class='mb-1 fs-16']/small//text()",
+        "address": "//section[@id='map_dirr']//div/p[@class='mb-0 text-muted']"
     }
 }

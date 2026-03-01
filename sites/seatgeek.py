@@ -4,6 +4,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import requests
+import pandas as pd
 
 from event import Event
 # from utils import save_and_upload_image
@@ -144,4 +145,12 @@ def fetch_events_from_seatgeek(days=1, city="Miami"):
 
 if __name__ == "__main__":
     results = fetch_events_from_seatgeek()
-    print(results)
+    # if results:
+    #     df = pd.DataFrame(results)
+
+    #     file_name = f"seatgeek.xlsx"
+    #     df.to_excel(file_name, index=False)
+
+    #     logging.info(f"Excel file created successfully: {file_name}")
+
+    # print(results)

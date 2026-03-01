@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta
 import os
 import sys
+import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import requests
 from selenium.webdriver.common.by import By
@@ -177,7 +178,16 @@ def fetch_events_from_eventbrite(city="miami", days=7):
             "end_date": (datetime.today() + timedelta(days)).strftime("%Y-%m-%d"),
         }
 
-        return scrape_event_data(place_id, csrf_token, dates)
+        results=  scrape_event_data(place_id, csrf_token, dates)
+        # if results:
+        #     df = pd.DataFrame(results)
+
+        #     file_name = f"eventbrite_events_{city.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        #     df.to_excel(file_name, index=False)
+
+        #     logging.info(f"Excel file created successfully: {file_name}")
+
+        return results
 
     except Exception:
         logging.exception("Error occurred during event data scraping and processing")

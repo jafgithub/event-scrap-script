@@ -2,6 +2,8 @@ import platform
 import re
 import os
 import sys
+import pandas as pd
+from datetime import datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 from driver import CustomWebDriver
@@ -137,6 +139,16 @@ def fetch_events_from_miamionthecheap(days=1, *args, **kwargs):
                 results.append(an_event)
     driver = CustomWebDriver(is_eager=False)
     events_w_cords = scrap_geo_code(driver, results)
+    driver.quit()
+    # if events_w_cords:
+    #     df = pd.DataFrame(events_w_cords)
+
+    #     file_name = f"miamionthecheap_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    #     df.to_excel(file_name, index=False)
+
+    #     logging.info(f"Excel file created successfully: {file_name}")
+    #     print(f"Excel created: {file_name}")
+
     return events_w_cords
 
 

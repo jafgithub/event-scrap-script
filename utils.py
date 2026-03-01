@@ -198,31 +198,33 @@ def extract_values(element_list: list[_Element], attribute="text") -> str:
 
 
 def get_lat_long(city):
-    url = "https://www.meetup.com/gql"
+    url = "https://nominatim.openstreetmap.org/search"
+
+    params = {
+        "q": city,
+        "format": "json",
+        "limit": 1
+    }
 
     headers = {
-        "Content-Type": "text/plain",
-        "Cookie": "MEETUP_INVALIDATE=iWGUcxc0WlG9coUK; MEETUP_INVALIDATE=dNVdWk3scz2H3n0g",
+        "User-Agent": "my-event-scraper/1.0"  # required
     }
-    payload = json.dumps(
-        {
-            "operationName": "locationWithInput",
-            "variables": {"query": city},
-            "extensions": {
-                "persistedQuery": {
-                    "version": 1,
-                    "sha256Hash": "55a21eb6c958816ff0ae82a3253156d60595177b4f3c20b59ea696e97acc653d",
-                }
-            },
-        }
-    )
-    res = make_request(url=url, data=payload, headers=headers, request_type="POST")
-    lat = 0
-    lng = 0
-    if "searchedLocations" in res["data"]:
-        lat = res["data"]["searchedLocations"][0]["lat"]
-        lng = res["data"]["searchedLocations"][0]["lon"]
-        return lat, lng
+
+    res = requests.get(url, params=params, headers=headers)
+
+    if res.status_code != 200:
+        print("Geocoding failed:", res.status_code)
+        return None, None
+
+    data = res.json()
+
+    if data:
+        return float(data[0]["lat"]), float(data[0]["lon"])
+
+    return None, None
+
+
+
 
 
 def get_driver(is_eager=False, disable_images=False, is_none=False):

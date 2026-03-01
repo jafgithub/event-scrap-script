@@ -49,7 +49,8 @@ def fetch_events_from_allevents(days=1, city="Miami"):
         )
         # Pagination loop
         page = 1
-        max_pages = 50  # Safety limit
+        max_pages = 10  # Safety limit
+        # max_pages = 50  # Safety limit
         total_events_fetched = 0
 
         while page <= max_pages:
@@ -120,7 +121,6 @@ def fetch_events_from_allevents(days=1, city="Miami"):
                     description = descriptions[i]
                     categories = record.get("categories") and record.get("categories")[0] or "No Categories Provided"
                     ticket_price = record["tickets"].get("min_ticket_price", 0)
-
                     an_event = Event()
                     an_event["title"] = event_name
                     an_event["sdate"] = start_date_obj
@@ -158,8 +158,7 @@ def fetch_events_from_allevents(days=1, city="Miami"):
         return results
     except Exception:
         logging.exception(f"An error occurred while fetching events from allevents.in")
-
-
+import pandas as pd
 def get_desc(urls=None):
     if urls is None:
         logging.exception("URLs are not provided")
@@ -179,7 +178,6 @@ def get_desc(urls=None):
                 f"An error occurred while fetching event description for URL {url}."
             )
             descriptions.append("")
-
     logging.info("Fetched event descriptions from allevents.in")
 
     return descriptions
@@ -187,6 +185,14 @@ def get_desc(urls=None):
 
 if __name__ == "__main__":
     events = fetch_events_from_allevents(days=30)
+    # if events:
+    #     df = pd.DataFrame(events)
+
+    #     file_name = f"allevents_events_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    #     df.to_excel(file_name, index=False)
+
+    #     logging.info(f"Excel file created successfully: {file_name}")
+    #     print(f"Excel created: {file_name}")
     async def main():
         uploader = GoogleDriveUploader()
 

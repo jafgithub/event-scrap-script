@@ -31,6 +31,6 @@ else:
 
 
 # For 10times.com
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_KEY_ID = os.getenv("AWS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 

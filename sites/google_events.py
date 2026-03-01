@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 import os
 import sys
+import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from parsel import Selector
 from selenium.common.exceptions import WebDriverException
@@ -338,6 +339,13 @@ def fetch_events_from_google_events(city="San Fransisco", days=30):
             f"Google events scrapped successfully. Events scraped: {len(google_events_w_cords)}"
         )
         # Raise the error to propagate it further
+        # if google_events_w_cords:
+        #     df = pd.DataFrame(google_events_w_cords)
+
+        #     file_name = f"google_events_{city.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            
+        #     df.to_excel(file_name, index=False)
+        #     logging.info(f"Excel file created successfully: {file_name}")
         return google_events_w_cords
     except Exception:
         logging.exception("An unexpected error occurred in the main() function")

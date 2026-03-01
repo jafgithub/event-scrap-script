@@ -16,19 +16,19 @@ from sites.miamitimesonline import fetch_events_from_miamitimes
 
 
 WEBSITE_FUNCTIONS = {
-    # "miamiandbeaches.com": fetch_events_from_miami_and_beaches,
+    "miamiandbeaches.com": fetch_events_from_miami_and_beaches,
     "eventbrite.com": fetch_events_from_eventbrite,
     "allevents.in": fetch_events_from_allevents,
     "googleevents": fetch_events_from_google_events,
     "ticketmaster.com": fetch_events_from_ticketmaster,
-    # "seatgeek.com": fetch_events_from_seatgeek,
-    # "miamibeachfl.gov":fetch_event_from_miamibeachfl,
-    # '10times.com': fetch_events_from_tentimes,
-    # 'miamionthecheap.com': fetch_events_from_miamionthecheap,
-    # "meetup.com": fetch_events_from_meetup,
-    # "local10.com": fetch_event_from_local10,
-    # "patch.com": fetch_events_from_patch,
-    # "miamitimesonline.com": fetch_events_from_miamitimes
+    "seatgeek.com": fetch_events_from_seatgeek,
+    "miamibeachfl.gov":fetch_event_from_miamibeachfl,
+    '10times.com': fetch_events_from_tentimes,
+    'miamionthecheap.com': fetch_events_from_miamionthecheap,
+    "meetup.com": fetch_events_from_meetup,
+    "local10.com": fetch_event_from_local10,
+    "patch.com": fetch_events_from_patch,
+    "miamitimesonline.com": fetch_events_from_miamitimes
 }
 
 def parse_arguments():

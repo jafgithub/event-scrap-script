@@ -88,7 +88,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import requests
 from event import Event
-
+import pandas as pd
 from utils import create_unique_object_id
 
 # logging.basicConfig(filename='event_fetch.log', level=logging.INFO,
@@ -180,8 +180,12 @@ def fetch_events_from_ticketmaster(city="Miami", days=30):
             f"ValueError: occurred while processing the response JSON.")
     except Exception:
         logging.exception(f"An error occurred.")
-
+    # if results:
+    #     df = pd.DataFrame(results)
+    #     file_name = f"ticketmaster_events_{city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    #     df.to_excel(file_name, index=False)
+    #     logging.info(f"Excel file created: {file_name}")
     return results
 
 
-fetch_events_from_ticketmaster() #TODO Fixed
+# fetch_events_from_ticketmaster() #TODO Fixed
