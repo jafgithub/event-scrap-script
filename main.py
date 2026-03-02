@@ -94,7 +94,10 @@ from aiohttp import ClientTimeout
 from datetime import datetime
 import pandas as pd
 import uuid
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from args_parser import WEBSITE_FUNCTIONS, parse_arguments
+from sites.eventbrite import cookies_dict
+from yarl import URL
 
 
 # ---------------- FETCH EVENTS ---------------- #
@@ -133,11 +136,32 @@ async def fetch_events(website, city, days):
 
 # ---------------- DOWNLOAD IMAGE ---------------- #
 
-async def download_image(session, url, img_dir):
+async def download_image(session, url, img_dir, website):
     try:
-        async with session.get(url) as response:
+        headers = {}
+
+        if website == "eventbrite.com":
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                "Referer": "https://www.eventbrite.com/",
+                "Origin": "https://www.eventbrite.com",
+            }
+
+            # Inject cookies specifically for image domain
+            parsed = URL(url)
+            for name, value in cookies_dict.items():
+                session.cookie_jar.update_cookies(
+                    {name: value},
+                    response_url=URL(f"{parsed.scheme}://{parsed.host}")
+                )
+
+        async with session.get(url, headers=headers) as response:
+            # print("STATUS:", response.status)
+
             if response.status == 200:
                 content = await response.read()
+
                 file_name = f"{uuid.uuid4().hex}.jpg"
                 file_path = os.path.join(img_dir, file_name)
 
@@ -145,13 +169,42 @@ async def download_image(session, url, img_dir):
                     f.write(content)
 
                 return file_path
+
             return "NONE"
-    except Exception:
+
+    except Exception as e:
+        print("ERROR:", e)
         return "NONE"
 
-
+import requests
 # ---------------- MAIN ---------------- #
+def download_eventbrite_image(url, img_dir):
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Referer": "https://www.eventbrite.com/",
+        }
 
+        r = requests.get(url, headers=headers, timeout=15)
+
+        print("STATUS for eventbrite image:", r.status_code)
+
+        if r.status_code in (200, 304):
+            file_name = f"{uuid.uuid4().hex}.jpg"
+            file_path = os.path.join(img_dir, file_name)
+
+            with open(file_path, "wb") as f:
+                f.write(r.content)
+
+            return file_path
+
+        return "NONE"
+
+    except Exception as e:
+        print(e)
+        return "NONE"
+    
 async def main():
     try:
         parser, args = parse_arguments()
@@ -189,8 +242,19 @@ async def main():
             tasks = []
             for event in events:
                 url = event.get("original_img_name", "")
+
                 if url and isinstance(url, str) and url.lower() != "none":
-                    tasks.append(download_image(session, url, img_dir))
+
+                    if website == "eventbrite.com":
+                        # Run sync function in thread
+                        tasks.append(
+                            asyncio.to_thread(download_eventbrite_image, url, img_dir)
+                        )
+                    else:
+                        # Normal async downloader
+                        tasks.append(
+                            download_image(session, url, img_dir, website)
+                        )
                 else:
                     tasks.append(asyncio.sleep(0, result="NONE"))
 

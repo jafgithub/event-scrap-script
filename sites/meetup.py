@@ -28,7 +28,7 @@ def fetch_events_from_meetup(days=2, city="Miami"):
         events_data = []
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"])
             page = browser.new_page()
 
             def handle_response(response):
@@ -47,13 +47,13 @@ def fetch_events_from_meetup(days=2, city="Miami"):
             last_height = page.evaluate("() => document.body.scrollHeight")
             while True:
                 page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(8000)  # wait 8s for new events to load
+                page.wait_for_timeout(3000)  # wait 8s for new events to load
                 new_height = page.evaluate("() => document.body.scrollHeight")
                 if new_height == last_height:
                     break
                 last_height = new_height
 
-            page.wait_for_timeout(5000) 
+            page.wait_for_timeout(2000) 
 
         # --- Parse events ---
         for gql_response in events_data:

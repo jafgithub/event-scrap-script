@@ -331,8 +331,8 @@ def fetch_events_from_google_events(city="San Fransisco", days=30):
             driver, events_until_date=events_until_date, selector=result
         )
         print(len(google_events))
-        with open('raw.txt', 'w') as f:
-            f.write(str(google_events))
+        # with open('raw.txt', 'w') as f:
+        #     f.write(str(google_events))
         google_events_w_cords = scrap_geo_code(driver, google_events)
 
         logging.info(

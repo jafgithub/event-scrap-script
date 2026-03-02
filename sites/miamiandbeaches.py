@@ -29,7 +29,7 @@ def fetch_events_from_miami_and_beaches(days=1, **kwargs):
 
         # Intercept Algolia requests
         def handle_response(response):
-            if "algolianet.com/1/indexes" in response.url and response.status == 200:
+            if "algolia.net/1/indexes" in response.url and response.status == 200:
                 try:
                     data = response.json()
                     algolia_responses.append(data)

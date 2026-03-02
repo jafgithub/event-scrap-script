@@ -80,10 +80,10 @@ def fetch_events_from_miamionthecheap(days=1, *args, **kwargs):
                 if is_url(event_url):
                     event_detail_page = make_request(event_url)
 
-                    if len(event_detail_page) or isinstance(
+                    if event_detail_page is not None and (len(event_detail_page) or isinstance(
                         event_detail_page, (_Element,
                                             HtmlElement, _ElementTree)
-                    ):
+                    )):
 
                         event_image = extract_values(event_detail_page.xpath(
                             _XPATHS['detailpage']['event_image']))
