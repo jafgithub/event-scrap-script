@@ -289,7 +289,7 @@ async def main():
             df.to_csv(file_path, index=False)
             print("\n⚠ Long URL detected → Saved as CSV")
         else:
-            file_name = f"{website}_{time_now}.xlsx"
+            file_name = f"{website}_{time_now}_{city}.xlsx"
             file_path = os.path.join(report_dir, file_name)
             df.to_excel(file_path, index=False)
             print("\n✅ Saved as Excel")
