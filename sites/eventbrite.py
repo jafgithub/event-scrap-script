@@ -65,74 +65,126 @@ def get_api_params(driver: CustomWebDriver, city: str = "miami", days: int = 30)
         return None
 
 
-def scrape_event_data(place_id, csrf_token, dates):
+def scrape_event_data(place_id, csrf_token, dates, max_retries=3, max_pages=50):
+
+    url = "https://www.eventbrite.com/api/v3/destination/search/"
+
+    headers = {
+        "content-type": "application/json",
+        "origin": "https://www.eventbrite.com",
+        "referer": "https://www.eventbrite.com/",
+        "user-agent": "Mozilla/5.0",
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrf_token,
+    }
+
+    data = {
+        "event_search": {
+            "dates": "current_future",
+            "date_range": {
+                "from": dates["start_date"],
+                "to": dates["end_date"],
+            },
+            "dedup": True,
+            "places": [place_id],
+            "page": 1,
+            "page_size": 50,
+        },
+        "expand.destination_event": [
+            "primary_venue",
+            "image",
+            "ticket_availability",
+            "primary_organizer",
+        ],
+    }
+
+    results = []
+    session = requests.Session()
+    page_number = 1
 
     try:
-        url = "https://www.eventbrite.com/api/v3/destination/search/"
+        while page_number <= max_pages:
 
-        headers = {
-            "content-type": "application/json",
-            "origin": "https://www.eventbrite.com",
-            "referer": "https://www.eventbrite.com/",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            'X-Requested-With': 'XMLHttpRequest',
-            "X-CSRFToken": csrf_token,
-            "x-csrftoken": csrf_token,
-            "X-CSRF-Token": csrf_token,
-        }
-
-        data = {
-            "event_search": {
-                "dates": "current_future",
-                "date_range": {"from": dates["start_date"], "to": dates["end_date"]},
-                "dedup": True,
-                "places": [place_id],
-                "page": 1,
-                "page_size": 50,
-            },
-            "expand.destination_event": [
-                "primary_venue",
-                "image",
-                "ticket_availability",
-                "primary_organizer",
-            ],
-        }
-
-        results = []
-        page_number = 1
-
-        while True:
             data["event_search"]["page"] = page_number
+            success = False
 
-            response = requests.post(url, headers=headers, cookies=cookies_dict, json=data)
-            response_json = response.json()
+            # ---- Retry Per Page ----
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logging.info(f"Eventbrite page {page_number}, attempt {attempt}")
+
+                    response = session.post(
+                        url,
+                        headers=headers,
+                        cookies=cookies_dict,
+                        json=data,
+                        timeout=30,
+                    )
+
+                    if response.status_code == 200:
+                        success = True
+                        break
+
+                    elif response.status_code in [403, 401]:
+                        logging.error("CSRF expired or unauthorized")
+                        return results
+
+                    elif response.status_code == 429:
+                        logging.warning("Rate limited. Sleeping...")
+                        time.sleep(5 * attempt)
+
+                    else:
+                        logging.warning(
+                            f"Status {response.status_code} on page {page_number}"
+                        )
+
+                except requests.exceptions.RequestException:
+                    logging.exception(
+                        f"Network error page {page_number}, attempt {attempt}"
+                    )
+
+                time.sleep(2 * attempt)
+
+            if not success:
+                logging.error(f"Skipping page {page_number} after retries")
+                page_number += 1
+                continue
+
+            try:
+                response_json = response.json()
+            except Exception:
+                logging.exception("JSON parse failed")
+                break
 
             event_results = response_json.get("events", {}).get("results", [])
 
             if not event_results:
+                logging.info("No more events found")
                 break
 
+            # ---- Process Events ----
             for event in event_results:
                 try:
                     an_event = Event()
 
-                    an_event["title"] = event["name"]
+                    an_event["title"] = event.get("name", "")
                     an_event["description"] = event.get("summary", "")
 
-                    an_event["sdate"] = event["start_date"]
-                    an_event["edate"] = event["end_date"]
-
-                    an_event["stime"] = event["start_time"]
-                    an_event["etime"] = event["end_time"]
+                    an_event["sdate"] = event.get("start_date")
+                    an_event["edate"] = event.get("end_date")
+                    an_event["stime"] = event.get("start_time")
+                    an_event["etime"] = event.get("end_time")
 
                     venue = event.get("primary_venue", {})
                     addr = venue.get("address", {})
 
                     an_event["place_name"] = venue.get("name", "")
-                    an_event["address"] = addr.get("localized_address_display", "")
+                    an_event["address"] = addr.get(
+                        "localized_address_display", ""
+                    )
 
-                    an_event["latitude"] = float(addr.get("latitude", 0) or 0)
-                    an_event["longitude"] = float(addr.get("longitude", 0) or 0)
+                    an_event["latitude"] = float(addr.get("latitude") or 0)
+                    an_event["longitude"] = float(addr.get("longitude") or 0)
 
                     an_event["organizer"] = event.get(
                         "primary_organizer", {}
@@ -140,9 +192,11 @@ def scrape_event_data(place_id, csrf_token, dates):
 
                     an_event["event_url"] = event.get("url", "")
 
-                    image = event.get("image", None)
-                    if image:
-                        an_event["original_img_name"] = image["original"]["url"]
+                    image = event.get("image")
+                    if image and image.get("original"):
+                        an_event["original_img_name"] = image["original"].get(
+                            "url", "NONE"
+                        )
                     else:
                         an_event["original_img_name"] = "NONE"
 
@@ -153,12 +207,14 @@ def scrape_event_data(place_id, csrf_token, dates):
                     continue
 
             page_number += 1
+            time.sleep(1)
 
+        logging.info(f"Eventbrite finished. Total events: {len(results)}")
         return results
 
     except Exception:
-        logging.exception("Error occurred while scraping event data")
-        return []
+        logging.exception("Fatal error in Eventbrite scraper")
+        return results
 
 
 def fetch_events_from_eventbrite(city="miami", days=7):

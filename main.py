@@ -284,7 +284,7 @@ async def main():
         time_now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         if save_as_csv:
-            file_name = f"{website}_{time_now}.csv"
+            file_name = f"{website}_{time_now}_{city}.csv"
             file_path = os.path.join(report_dir, file_name)
             df.to_csv(file_path, index=False)
             print("\n⚠ Long URL detected → Saved as CSV")

@@ -5,26 +5,31 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import requests
 import pandas as pd
-
+import time
 from event import Event
 # from utils import save_and_upload_image
 
 
-def fetch_events_from_seatgeek(days=1, city="Miami"):
+def fetch_events_from_seatgeek(days=1, city="Miami",
+                                max_retries=3,
+                                max_pages=50):
+
     url = "https://api.seatgeek.com/2/events/"
 
     try:
         start_date = date.today()
         end_date = start_date + timedelta(days=days)
         end_date_str = end_date.strftime("%Y-%m-%d")
-        print(end_date_str)
+
         logging.info(
-            f"Fetching events from seatgeek.com for {city} for the next {days} days."
+            f"Fetching events from seatgeek.com for {city} for next {days} days."
         )
+
         results = []
+        session = requests.Session()
 
         params = {
-            "page": 0,
+            "page": 1,
             "per_page": 50,
             "listing_count.gte": 1,
             "lat": 25.76168,
@@ -33,114 +38,132 @@ def fetch_events_from_seatgeek(days=1, city="Miami"):
             "datetime_utc.lte": end_date_str,
             "sort": "datetime_local.asc",
             "client_id": "MTY2MnwxMzgzMzIwMTU4",
-            # 'venue.city': 'miami'
         }
-        pages = 1
-        while True:
-            params['page'] = pages
-            print(params)
-            response = requests.get(url, params=params)
-            # print(response.url)
-            if response.status_code == 200:
+
+        page_number = 1
+
+        while page_number <= max_pages:
+
+            params["page"] = page_number
+            success = False
+
+            # ---- Retry per page ----
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logging.info(f"SeatGeek page {page_number}, attempt {attempt}")
+
+                    response = session.get(
+                        url,
+                        params=params,
+                        timeout=30
+                    )
+
+                    if response.status_code == 200:
+                        success = True
+                        break
+
+                    elif response.status_code == 429:
+                        logging.warning("Rate limited. Sleeping...")
+                        time.sleep(5 * attempt)
+
+                    else:
+                        logging.warning(
+                            f"Status {response.status_code} on page {page_number}"
+                        )
+
+                except requests.exceptions.RequestException:
+                    logging.exception(
+                        f"Network error page {page_number}, attempt {attempt}"
+                    )
+
+                time.sleep(2 * attempt)
+
+            if not success:
+                logging.error(f"Skipping page {page_number} after retries")
+                page_number += 1
+                continue
+
+            try:
                 data = response.json()
-                meta = data.get("meta", {}).get('total')
-                
-                data = data.get("events", [])
-                if not data:
-                    break
-                logging.info(f"Fetched {len(data)} events from allevents.in.")
+                events = data.get("events", [])
+            except Exception:
+                logging.exception("JSON parsing failed")
+                break
 
-                print(len(data))
+            if not events:
+                logging.info("No more events found")
+                break
 
-                # print(record)
-                for i, record in enumerate(data):
-                    # stime = datetime.fromtimestamp(
-                    #     int(record["start_time"]))
-                    # etime = datetime.fromtimestamp(
-                    #     int(record["end_time"]))
-                    # f"{event['latitude']} {event['longitude']}"
-                    try:
-                        event_name = record["title"]
-                        event_url = record["url"]
-                        print(f"Event {i} : {event_url}")
-                        venue = record["venue"].get("name", "")
-                        performers = record["performers"]
-                        if performers:
-                            image_url = performers[0].get("image")
+            logging.info(f"Fetched {len(events)} events from SeatGeek")
 
-                            if not image_url:
-                                image_url = "NONE"
-                                # event_image = save_and_upload_image(
-                                #     image_url, website_name="seatgeek.com"
-                                # )
+            # ---- Process events ----
+            for i, record in enumerate(events):
+                try:
+                    an_event = Event()
 
-                                # if event_image == "NONE":
-                                #     file_name = "NONE"
-                                # else:
-                                #     file_name, event_image = event_image
-                                pass
-                            # else:
-                            #     event_image = "NONE"
-                        else:
-                            event_image = "NONE"
-                        startdate_str = record["datetime_local"].split("T")
-                        start_date = startdate_str[0]
-                        end_time = "NONE"
-                        start_time = startdate_str[1]
-                        end_date = "NONE"
-                        latitude = float(record["venue"]["location"]["lat"])
-                        longitude = float(record["venue"]["location"]["lon"])
-                        full_address = f"{record['venue']['name']}, {record['venue']['address']}, {record['venue']['display_location']} - {record['venue']['postal_code']}"
-                        # print(full_address)
-                        description = (
-                            "NONE" if record["description"] == "" else record["description"]
-                        )
-                        categories = ", ".join(
-                            [taxonomy["name"] for taxonomy in record["taxonomies"]]
-                        )
-                        ticket_price = record["stats"].get("median_price", 0)
+                    an_event["title"] = record.get("title", "")
+                    an_event["event_url"] = record.get("url", "")
 
-                        an_event = Event()
-                        an_event["title"] = event_name
-                        # an_event["img"] = f"images/event/{file_name}"
-                        # an_event["cover_img"] = f"images/event/{file_name}"
-                        an_event["sdate"] = start_date
-                        an_event["stime"] = start_time
-                        an_event["etime"] = end_time
-                        an_event["address"] = full_address
-                        an_event["description"] = description
-                        an_event["disclaimer"] = "NONE"
-                        an_event["latitude"] = latitude
-                        an_event["longitude"] = longitude
-                        an_event["place_name"] = venue
-                        an_event["event category"] = categories
-                        an_event["price"] = ticket_price
-                        an_event["event_url"] = event_url
-                        an_event["edate"] = end_date
-                        an_event["original_img_name"] = image_url
+                    venue_data = record.get("venue", {})
+                    location_data = venue_data.get("location", {})
 
-                        results.append(an_event)
-                        # events.append(instance)
-                        print(f"Event {i} processed successfully. {an_event['event_url']}")
-                        logging.info(
-                            f"Event {i} processed successfully. {an_event['event_url']}"
-                        )
-                    except KeyError:
-                        logging.exception(
-                            f"KeyError: occurred while processing Event {i}. url = {an_event['event_url']}"
-                        )
-                pages+=1
-                # events = prepare_data_for_excel(events)
+                    an_event["place_name"] = venue_data.get("name", "")
+                    an_event["latitude"] = float(location_data.get("lat", 0))
+                    an_event["longitude"] = float(location_data.get("lon", 0))
 
-            else:
-                logging.exception(f"Request failed with status code {response.status_code}")
-                print("Request failed with status code", response.status_code)
-            
+                    an_event["address"] = (
+                        f"{venue_data.get('name','')}, "
+                        f"{venue_data.get('address','')}, "
+                        f"{venue_data.get('display_location','')} - "
+                        f"{venue_data.get('postal_code','')}"
+                    )
+
+                    datetime_local = record.get("datetime_local", "")
+                    if "T" in datetime_local:
+                        sdate, stime = datetime_local.split("T")
+                    else:
+                        sdate, stime = None, None
+
+                    an_event["sdate"] = sdate
+                    an_event["stime"] = stime
+                    an_event["etime"] = "NONE"
+                    an_event["edate"] = "NONE"
+
+                    an_event["description"] = (
+                        record.get("description") or "NONE"
+                    )
+
+                    taxonomies = record.get("taxonomies", [])
+                    an_event["event category"] = ", ".join(
+                        [t.get("name", "") for t in taxonomies]
+                    )
+
+                    an_event["price"] = record.get(
+                        "stats", {}
+                    ).get("median_price", 0)
+
+                    performers = record.get("performers", [])
+                    if performers and performers[0].get("image"):
+                        an_event["original_img_name"] = performers[0].get("image")
+                    else:
+                        an_event["original_img_name"] = "NONE"
+
+                    results.append(an_event)
+
+                except Exception:
+                    logging.exception(
+                        f"Error processing event {record.get('url')}"
+                    )
+
+            page_number += 1
+            time.sleep(1)
+
+        logging.info(f"SeatGeek finished. Total events: {len(results)}")
         return results
- 
+
     except Exception:
-        logging.exception(f"An error occurred while fetching events from allevents.in:")
-        print("An error occurred while fetching events from allevents.in:")
+        logging.exception("Fatal error in SeatGeek scraper")
+        return []
 
 
 if __name__ == "__main__":

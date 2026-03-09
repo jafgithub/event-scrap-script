@@ -108,71 +108,76 @@ def fetch_events_from_ticketmaster(city="Miami", days=30):
     print(url)
     try:
         results = []
-        response = requests.get(url=url)
+        response = requests.get(url=url).json()
 
-        response = response.json()
-        response = response["_embedded"]["events"]
-        logging.info(f"Number of events: {len(response)}")
-        for i, record in enumerate(response):
-            print(i)
-            try:
-                # img_name, img_link = save_and_upload_image(
-                #     record["images"][4]["url"], "ticketmaster.com")
+        # Safely get events
+        events = response.get("_embedded", {}).get("events", [])
 
-                an_event = Event()
+        if not events:
+            logging.info(f"No events found for: {city}")
+        else:
+            logging.info(f"Number of events: {len(events)}")
 
-                # Title
-                an_event['title'] = record.get("name", "NONE")
+            for i, record in enumerate(events):
+                # Skip invalid records
+                if not isinstance(record, dict):
+                    logging.warning(f"Skipping invalid record at index {i}: {record}")
+                    continue
 
-                # Image (commented out, keep as-is)
-                # an_event['img'] = f"images/event/{img_name}"  # data:img
-                # an_event['cover_img'] = f"images/event/{img_name}"  # data:img_url
-
-                # Date & Time
-                an_event['sdate'] = record.get("dates", {}).get("start", {}).get("localDate", "NONE")
-                an_event['stime'] = record.get("dates", {}).get("start", {}).get("localTime", "NONE")
-                an_event['etime'] = "NONE"
-
-                # Venue info
-                venue = record.get("_embedded", {}).get("venues", [{}])[0]
-                an_event['address'] = f'{venue.get("name", "NONE")} {venue.get("postalCode", "NONE")}'
-                an_event['place_name'] = venue.get("address", {}).get("line1", "NONE")
-                an_event['latitude'] = venue.get("location", {}).get("latitude", "NONE")
-                an_event['longitude'] = venue.get("location", {}).get("longitude", "NONE")
-
-                # Description & disclaimer
-                an_event['description'] = "NONE"
-                an_event['disclaimer'] = "NONE"
-
-                # Event category
                 try:
-                    an_event['event category'] = record["classifications"][0]["segment"]["name"]
-                except (KeyError, IndexError, TypeError):
-                    an_event['event category'] = ""
+                    an_event = Event()
 
-                # Price
-                try:
-                    an_event['price'] = record.get("priceRanges")[0]["min"]
-                except (KeyError, IndexError, TypeError):
-                    an_event['price'] = "NONE"
+                    # Title
+                    an_event['title'] = record.get("name", "NONE")
 
-                an_event['is_soldout'] = "False"
-                an_event['event_url'] = record.get("url", "NONE")
-                an_event['edate'] = "NONE"
+                    # Date & Time
+                    an_event['sdate'] = record.get("dates", {}).get("start", {}).get("localDate", "NONE")
+                    an_event['stime'] = record.get("dates", {}).get("start", {}).get("localTime", "NONE")
+                    an_event['etime'] = "NONE"
 
-                # Original image URL
-                try:
-                    an_event['original_img_name'] = record.get("images", [{}])[4].get("url", "NONE")
-                except (IndexError, KeyError, TypeError):
-                    an_event['original_img_name'] = "NONE"
+                    # Venue info
+                    venue = record.get("_embedded", {}).get("venues", [{}])[0]
+                    an_event['address'] = f'{venue.get("name", "NONE")} {venue.get("postalCode", "NONE")}'
+                    an_event['place_name'] = venue.get("address", {}).get("line1", "NONE")
+                    an_event['latitude'] = venue.get("location", {}).get("latitude", "NONE")
+                    an_event['longitude'] = venue.get("location", {}).get("longitude", "NONE")
 
-                results.append(an_event)
-                print(f"Event {i} processed successfully. {an_event['event_url']}")
-                logging.info(
-                    f"Event {i} processed successfully. {an_event['event_url']}")
-            except KeyError:
-                logging.exception(
-                    f"KeyError: occurred while processing Event {i}. url = {an_event['event_url']}")
+                    # Description & disclaimer
+                    an_event['description'] = "NONE"
+                    an_event['disclaimer'] = "NONE"
+
+                    # Event category
+                    try:
+                        an_event['event category'] = record["classifications"][0]["segment"]["name"]
+                    except (KeyError, IndexError, TypeError):
+                        an_event['event category'] = ""
+
+                    # Price
+                    try:
+                        an_event['price'] = record.get("priceRanges")[0]["min"]
+                    except (KeyError, IndexError, TypeError):
+                        an_event['price'] = "NONE"
+
+                    an_event['is_soldout'] = "False"
+                    an_event['event_url'] = record.get("url", "NONE")
+                    an_event['edate'] = "NONE"
+
+                    # Original image URL
+                    try:
+                        an_event['original_img_name'] = record.get("images", [{}])[4].get("url", "NONE")
+                    except (IndexError, KeyError, TypeError):
+                        an_event['original_img_name'] = "NONE"
+
+                    results.append(an_event)
+                    logging.info(f"Event {i} processed successfully: {an_event['event_url']}")
+
+                except Exception:
+                    logging.exception(f"Error processing event at index {i}")
+
+                except Exception:
+                    logging.exception(f"No record found for: {city}")
+            
+
     except requests.exceptions.RequestException:
         logging.exception(f"Request Exception occurred.")
     except ValueError:

@@ -15,6 +15,14 @@ from pytz import timezone
 import logging
 import json
 
+MEETUP_LOCATION_MAP = {
+    "miami": "us--fl--Miami",
+    "new jersey": "us--nj--Jersey+City",
+    "islamabad": "pk--Islamabad",
+    "bangalore": "in--Bangalore",
+    "chennai": "in--Chennai",
+    "dhaka": "bd--Dhaka",
+}
 def fetch_events_from_meetup(days=2, city="Miami"):
     try:
         results = []
@@ -22,8 +30,14 @@ def fetch_events_from_meetup(days=2, city="Miami"):
         tz = timezone("America/New_York")  # adjust as needed
 
         # Build Meetup URL
-        city_param = city.lower().replace(' ', '-')
-        url = f"https://www.meetup.com/find/?location=us--fl--{city_param}&source=EVENTS"
+        city_key = city.lower()
+
+        location = MEETUP_LOCATION_MAP.get(city_key)
+        if not location:
+            raise ValueError(f"Unsupported city for Meetup: {city}")
+
+        url = f"https://www.meetup.com/find/?location={location}&source=EVENTS"
+        # url = f"https://www.meetup.com/find/?location=us--fl--{city_param}&source=EVENTS"
 
         events_data = []
 

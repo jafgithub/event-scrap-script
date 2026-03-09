@@ -49,7 +49,7 @@ def fetch_events_from_allevents(days=1, city="Miami"):
         )
         # Pagination loop
         page = 1
-        max_pages = 10  # Safety limit
+        max_pages = 50 
         # max_pages = 50  # Safety limit
         total_events_fetched = 0
 
@@ -158,6 +158,7 @@ def fetch_events_from_allevents(days=1, city="Miami"):
         return results
     except Exception:
         logging.exception(f"An error occurred while fetching events from allevents.in")
+
 import pandas as pd
 def get_desc(urls=None):
     if urls is None:
